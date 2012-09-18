@@ -16,13 +16,16 @@ index may be modeled by a simple map or dictionary if documents are as
 follows:
 
 **whale_report.txt**
+
 	I like whales. Whales are great because...
 
  
 **moby_dick.epub**
+
 	Chief among these motives was the overwhelming idea of the great whale himself.
 
 **Names.csv**
+
 	Name,Age,Profession
 	John Smith, 45, Whale Expert
 	John Galt, ??, 2nd Asst. Bookkeeper
@@ -31,12 +34,17 @@ An index, in it's simplest form, would comprise of a series of documents, each
 named after the word they were indexing, containing a list of files that had
 the given word.
 
-whale.index
+**whale.index**
+
 	whale_report.txt
 	moby_dic.epub
 	Names.csv
-john.index
+
+**john.index**
+
 	Names.csv
-great.index
+
+**great.index**
+
 	moby_dick.epub
 	whale_report.epub
