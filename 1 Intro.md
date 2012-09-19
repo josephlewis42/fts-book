@@ -10,14 +10,14 @@ describing the theory behind the topic, and the other describing the
 implementation that the book chooses to make and justifications for
 that.
 
-If you follow along, and write/complie the code given, at the end of 
+If you follow along, and write/compile the code given, at the end of 
 the book, you should have a minimal Full Text Search engine that can
 be paired with something like Tika to build a desktop search engine, 
 a spider to index a site, or simply be embedded in an application that
 you choose to use it with.
 
 Most of the code will be written in Python due to portability, clarity,
-ease of maintinance, and development speed.
+ease of maintenance, and development speed.
 
 Topics
 ======
