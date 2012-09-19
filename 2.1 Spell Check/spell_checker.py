@@ -43,6 +43,8 @@ class Checker:
 		''' Checks the given word against the dictionary, returns a "corrected" 
 		one. '''
 		
+		word = word.lower()
+		
 		try:
 			return self.check_cache[word]
 		except KeyError:
