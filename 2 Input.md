@@ -153,6 +153,8 @@ will be discussed further in "Querying the index".
 Wrapping it Up (In to Documents)
 --------------------------------
 
+All together we need a format to represent a document that can be portable and
+communicated from one system to another:
 
 
 

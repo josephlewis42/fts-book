@@ -34,7 +34,7 @@ class Checker:
 	def get_doc_dict(self, document_words_list):
 		'''Gets a word->frequency dict for the words in the given doc.'''
 		model = collections.defaultdict(lambda: 1)
-		for f in features:
+		for f in document_words_list:
 			model[f] += 1
 		return model
 		
