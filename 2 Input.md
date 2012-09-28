@@ -157,6 +157,77 @@ All together we need a format to represent a document that can be portable and
 communicated from one system to another:
 
 
+	#!/usr/bin/env python
+
+	'''
+	Called like so:
+	>>>	import document
+	>>>	 d = document.Document(open('tests/incorrect_spelling'), 'file://tests/incorrect_spelling')
+	'''
+
+	import spell_checker
+	import parser
+	import json
+	import collections
+
+	class Document:
+		# full text of the document
+		full_text_words = None
+
+		# full text of the document, run through the spelling correction
+		# algorithm
+		spelling_corrected = None
+
+		# frequency of words found in the document
+		word_frequency_map = None
+	
+	
+		def get_word_locations(self):
+			model = collections.defaultdict(lambda: [])
+			for i in range(len(self.full_text_words)):
+				model[self.full_text_words[i]].append(i)
+			
+			for word in self.spelling_corrected:
+				model[word].append(-1)
+		
+			return model
+
+
+		def __init__(self, fd, uri, metadatadict={}):
+			''' Indexes/normalizes a document.'''
+
+			self.metadata = metadatadict
+			self.uri = uri
+			self.full_text_words = parser.parse_document(fd.read())
+			sc = spell_checker.Checker()
+
+			self.word_frequency_map = sc.get_doc_dict(self.full_text_words)
+
+			# Add in all of the words we don't know about
+			self.spelling_corrected = []
+			for word in self.full_text_words:
+				new_word = sc.check_word(word, self.word_frequency_map)
+			
+				if new_word != word:
+					self.spelling_corrected.append(new_word)
+
+		def __str__(self):
+			return " ".join(self.full_text_words)
+
+		def dump_json(self):
+			return json.dumps({"words_map" : self.get_word_locations(),
+								"uri" : self.uri,
+								"metadata" : self.metadata})
+
+
+This "document" object takes in a file handle and parses the text that comes
+out of it. That text, once processed can be encoded in JSON and sent to the 
+database.
+
+The JSON output will have a "words_map" which is a map of a string to an array
+of locations the word was found in, the URI of the document, and a string->string
+dictionary with all metadata (assumed to have been processed before creating
+the document).
 
 Deficiencies
 ------------
@@ -170,4 +241,4 @@ How does it...
 
 The first two are the jobs of other pieces of code we won't cover, like spiders,
 that fetch web pages, or utilities like "file" that read metadata from a file, 
-or text converters that extract text from it.
+or text converters that extract text from files like PDFs.

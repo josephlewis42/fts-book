@@ -29,8 +29,7 @@ a row and column, and getting the result stored in one of the nodes.
 This method works well when the database needs to scale up to a high load and 
 the interconnections between nodes is very fast (Google owns it's own fiber
 between their data-centers, and there is compelling evidence they even 
-[build their own networking switches](http://www.wired.com/wiredenterprise/2012/09/pluto-switch/)
-.)
+[build their own networking switches](http://www.wired.com/wiredenterprise/2012/09/pluto-switch/).)
 
 An [alternative method](http://dev.mysql.com/doc/refman/5.0/en/fulltext-search.html)
 , used by MySQL tables is to simply produce a table of term document mappings, 
@@ -106,3 +105,123 @@ The database is the slow point of the whole operation, and thus it should avoid
 doing as much work as possible. If you never want to re-construct documents, 
 the indexes of the words should not be stored, if approximations are okay, you
 should stem words.
+
+One common feature of FTS engines is to stop indexing after a certain number of
+bytes has been reached, this keeps large data sets, like CSVs that could range
+in to the gigabytes from ruining the database.
+
+Implementation Details
+----------------------
+
+We are going to implement two different database back-ends, one in SQLite, this
+should be useful for small indexes, like those of a single user on a computer.
+And one for larger indexes, like websites, using flat-files. Both of these will
+have the same interface, so they can be used interchangeably.
+
+HTTP will be used to transfer information, due to the ease of implementation and
+flexibility of HTML servers. If good input is put in, that input will be parsed,
+otherwise the data will be ignored and a 404 error will be returned.
+
+The server we'll use to act as the middleware will listen on port 33335 (if you
+were on UNIX, a UNIX socket would work in the user's home directory)
+
+**Adding Documents**
+
+Call the http://localhost:33335/add page with the POST parameter: "document" 
+which is the JSON representation of the document described in input.
+
+This is an example using the "incorrect_spelling" document in the Example 
+Documents folder.
+
+	{
+	   "metadata":{
+			"author":"Joseph"
+	   },
+	   "words_map":{
+		  "is":[
+		     19
+		  ],
+		  "fool":[
+		     -1
+		  ],
+		  "belong":[
+		     11
+		  ],
+		  "like":[
+		     1
+		  ],
+		  "wyglaf":[
+		     20
+		  ],
+		  "to":[
+		     12
+		  ],
+		  "i":[
+		     0
+		  ],
+		  "awesome":[
+		     5
+		  ],
+		  "kats":[
+		     3
+		  ],
+		  "commputers":[
+		     14
+		  ],
+		  "also":[
+		     10
+		  ],
+		  "cats":[
+		     2,
+		     6,
+		     -1
+		  ],
+		  "are":[
+		     4,
+		     15
+		  ],
+		  "computers":[
+		     13,
+		     -1
+		  ],
+		  "mice":[
+		     8,
+		     9
+		  ],
+		  "beowulf":[
+		     21
+		  ],
+		  "my":[
+		     17
+		  ],
+		  "eat":[
+		     7
+		  ],
+		  "kool":[
+		     16
+		  ],
+		  "name":[
+		     18
+		  ]
+	   },
+	   "uri":"file://tests/incorrect_spelling"
+	}
+	
+The JSON document has three parts, metadata associated with the document, the 
+author, the URI of the document, and a map between each word in the document, and
+the locations it was found in. -1 stands for a spelling correction (not in the 
+original, but important for statistics)
+
+From this information alone, we can re-construct the document if needed, 
+formatting will be lost, as well as punctuation, but it will be good enough for 
+previews.
+
+The database will also accept requests for documents using a simple query field:
+
+	http://localhost:33335/search?q=<QUERYTEXT>
+	
+This is a similar query mechanism to Bing, Google, and Yahoo! the q followed by
+a question mark is what allows Firefox to use all of them as search providers.
+
+Being that writing an HTTP server is beyond the scope of these documents, I'll
+include one that I wrote previously.
