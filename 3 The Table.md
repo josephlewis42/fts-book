@@ -206,7 +206,7 @@ Documents folder.
 	   },
 	   "uri":"file://tests/incorrect_spelling"
 	}
-	
+
 The JSON document has three parts, metadata associated with the document, the 
 author, the URI of the document, and a map between each word in the document, and
 the locations it was found in. -1 stands for a spelling correction (not in the 
