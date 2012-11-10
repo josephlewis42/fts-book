@@ -103,6 +103,15 @@ all terms for one document, you could "reconstruct" that document.
 Implementation Methods
 ----------------------
 
+Fortunately, Python has built-in support for SQLIte on all of it's
+platforms that run the C built interpreter, so including it is a
+non-issue, as any user that has a standard distribution installed will
+be able to run the software.
+
+Because I added primary key constraints and indexing to the example
+database, speed should be fast, even if the whole thing isn't pulled in to
+ memory by the SQLite runtime.
+
 The following methods are used to create the main class that houses the 
 database. All actual code has been cut out leaving just parameters and the word
 "self", which is included in all class methods in Python. Extra notes are below
@@ -199,11 +208,13 @@ contains_phrase on them, returning the matches.
 	            value   - (string) The value of the metadata to search for.
 
 
+
 	find_documents_for_term(self, term)
 	    Returns a list of all documents that have the given term in them.
 	    
 	    Params:
 	            term - (string) the term to search for.
+
 
 
 	find_metadata_for_document(self, docid)
@@ -308,37 +319,8 @@ contains_phrase on them, returning the matches.
 
 
 
-Software Design
----------------
-
-Fourtinately, Python has built-in support for SQLIte on all of it's
-platforms that run the C built interpreter, so including it is a
-non-issue, as any user that has a standard distribution installed will
-be able to run the software.
-
-Because I added primary key constraints and indexing to the example
-database, speed should be fast, even if the whole thing isn't pulled in to
- memory by the SQLite runtime.
-
-The database will also accept requests for documents using a simple query field:
-
-	http://localhost:33335/search?q=<QUERYTEXT>
-	
-This is a similar query mechanism to Bing, Google, and Yahoo! the q followed by
-a question mark is what allows Firefox to use all of them as search providers.
-
-Being that writing an HTTP server is beyond the scope of these documents, I'll
-include one that I wrote previously.
-
-
-Advanced Topics
-===============
-
-As with all advanced topics sections, read on if you want more information on 
-current systems.
-
-Secondary Concerns
-------------------
+Advanced: Secondary Concerns
+----------------------------
 
 **Instant Indexing**
 
