@@ -178,7 +178,8 @@ returned false yet, you've found at least one match!
 
 	count_documents(self)
 	    Returns the total number of documents in the index.
-	
+
+
 	documents_with_phrase(self, phrase)
 	    Returns a list of documents that contain the given phrase.
 	    
@@ -196,13 +197,15 @@ contains_phrase on them, returning the matches.
 	    Params:
 	            key             - (string) The key of the metadata to search for.
 	            value   - (string) The value of the metadata to search for.
-	
+
+
 	find_documents_for_term(self, term)
 	    Returns a list of all documents that have the given term in them.
 	    
 	    Params:
 	            term - (string) the term to search for.
-	
+
+
 	find_metadata_for_document(self, docid)
 	    Finds the key->values of the metadata for the given document.
 	    
@@ -211,7 +214,8 @@ contains_phrase on them, returning the matches.
 	    
 	    Returns:
 	            A key->value map for the metadata associated with the document.
-	
+
+
 	frequency(self, document_id, term)
 	    Returns the frequency of a term in a particular document.
 	    Returns 0 if the term is not present in the document, or the document
@@ -221,14 +225,16 @@ contains_phrase on them, returning the matches.
 	            document_id - (integer) The id of the document to look for the term
 	                                            frequency in.
 	            term - (string) The term to look for in the document.
-	
+
+
 	get_document_uri(self, docid)
 	    Returns the uri for the document with the given id. If no document 
 	    exists, returns a blank string.
 	    
 	    Params:
 	            docid - (integer) The id of the document to fetch the URI for.
-	
+
+
 	get_term_locations(self, term, document_id)
 	    Returns an array of the locations of the given term in the given
 	    document.
@@ -236,7 +242,8 @@ contains_phrase on them, returning the matches.
 	    Params:
 	            term            - a string that represents the term to be searched for.
 	            document_id - the id of the document to search for
-	
+
+
 	id_to_term(self, term_id)
 	    Returns the term text from the given term id or None if no term id 
 	    is given.
@@ -247,7 +254,8 @@ contains_phrase on them, returning the matches.
 	    
 	    Params:
 	            term_id - (integer) The id of the term to return the value for.
-	
+
+
 	reconstruct_document(self, doc_id)
 	    Takes the given document, and reports all the terms in it, in order,
 	    back as a string. If no such document exists, return an empty string.
@@ -263,7 +271,8 @@ contains_phrase on them, returning the matches.
 	    
 	    Params:
 	            doc_id - The id of the document to look for the string in
-	
+
+
 	reconstruct_partial_document(self, doc_id, termstart, termend)
 	    Takes the given document, and returns the terms from termstart to
 	    termend that were found in that document. If there are no terms within
@@ -282,11 +291,13 @@ contains_phrase on them, returning the matches.
 	            doc_id          - The id of the document to look for the string in.
 	            termstart       - The first word to include in the reconstruction.
 	            termend         - The last word to include in the reconstruction.
-	
+
+
 	shutdown(self)
 	    A method that is called before the whole software quits. The 
 	    database is saved and closed during this call.
-	
+
+
 	total_frequency(self, term)
 	    Returns the total number of times a particular term was found
 	    in the index.
