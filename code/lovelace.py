@@ -1,0 +1,219 @@
+#!/usr/bin/env python3
+
+from http.server import HTTPServer, BaseHTTPRequestHandler
+from socketserver import ThreadingMixIn
+import threading
+import cgi
+import sqlite_database
+import document
+import query_parser
+import ranker
+import operator
+import didyoumean
+import urllib
+import urllib.parse
+import sidebar_items
+import context_items
+
+MAIN_PAGE_TEMPLATE = """
+<html>
+<head>
+<style>
+body, html {font-family:arial;}
+
+aside {
+width:15%%;
+float:left;
+margin-right:2em;
+overflow:hidden;
+font-size:.9em;
+}
+
+header{
+width:100%%;float:left;
+margin-bottom:1em;
+font-family:Avant Garde;
+border-bottom:1px solid #333;
+}
+.box{display:inline;width:74%%;float:left;margin-top:2em;margin-left:1.5em;}
+header>h1{text-align:center;width:15%%;float:left;}
+aside h2 {font-size:1em;}
+.content { float:left; width:74%%;}
+section{margin-top:1em;}
+section>p{margin-top:0em; font-size:.8em;width:70%%}
+section>a{font-size:1.1em;}
+.meta{font-size:.8em;}
+.meta>a{text-decoration:none;}
+.u {color:#009900;}
+.c{font-style:italic;}
+</style>
+</head>
+<body>
+	<header>
+		<h1>Lovelace</h1>
+		<div class='box'>
+		<form><input type='text' value='%(query)s' name='q'/>
+		<input type='submit' value='Search'/></form></div>
+	</header>
+	<aside class='sidebar'>%(sidebar)s</aside>
+	%(spellcheck)s
+
+	<article class='content'>%(context)s %(content)s</article>
+</body>
+</html>
+"""
+
+ERROR_TEMPLATE = "<html><head><title>Error</title></head><body>%s</body></html>"
+
+
+ffd = sqlite_database.SQLITEBackend() # could also be any other database.
+
+class Handler(BaseHTTPRequestHandler):
+	'''A new Handler will be spawned for each connection.'''
+	
+	def show_page(self, contents):
+		self.send_response(200)
+		self.end_headers()
+		self.wfile.write(bytes(contents, 'UTF-8'))
+	
+	def show_error(self, message):
+		self.send_response(400)
+		self.end_headers()
+		self.wfile.write(bytes(ERROR_TEMPLATE % (message), 'UTF-8'))
+	
+	def do_reconstruct(self, qs):
+		if not 'doc' in qs.keys():
+			return self.show_error("Need doc param")
+		
+		self.show_page(ffd.reconstruct_document(qs['doc'][0]))
+		
+
+	def do_GET(self):
+		''' If the client does a GET request, i.e. the one you'd do by typing in
+		http://localhost:33335/?q=hello%20world this function will be called.
+		'''
+		
+		# Turn the query string (the part of the url after the ? mark, in to a
+		# map.
+		qs = {}
+		if '?' in self.path:
+			qs = cgi.parse_qs(self.path.split('?',1)[1])
+			
+		
+		if self.path.startswith("/full"):
+			return self.do_reconstruct(qs)
+	
+		# Try forming a message based upon the query, in this simple example,
+		# we'll just output an array for documents containing the given term.
+
+		query = ""
+		message = ""
+		sidebar = ""
+		context = ""
+		try:
+			query = qs['q'][0]
+			messages = query_parser.get_results(query, ffd)
+			
+			if len(messages) > 0:
+				ranks = ranker.rank_documents(query, messages, ffd)
+				ranks = sorted(ranks.items(), key=operator.itemgetter(1), reverse=True)
+				
+				docid_rank_map = {}
+				for docid, rank in ranks:
+					docid_rank_map[docid] = rank
+					
+				sidebar = sidebar_items.generate_sidebar(query, docid_rank_map, ffd)
+				context = context_items.generate_context(query, docid_rank_map, ffd)
+
+				for x in ranks:
+					rank = x[1]
+					docid = x[0]
+					
+					uri = ffd.get_document_uri(docid)
+					
+					if len(uri) == 0:
+						continue # ignore document sans links
+					
+					metadata = ffd.find_metadata_for_document(docid)
+					try:
+						title = metadata['title']
+					except KeyError:
+						title = urllib.parse.urlsplit(uri)[2]
+
+						
+					message += """<section><a href='%s'>%s</a><br>
+								  <div class='meta'><span class='u'>%s (%.2f)</span> <a class='c' href='/full?doc=%s'>cached</a></div>
+								  <p>%s</p></section>""" % (uri, title, uri, rank, docid, ranker.bold_summary(query, ranker.generate_summary(query, docid, ffd)) )
+
+				
+					
+			else:
+				message = "<p><i>Nothing returned for your query.</i></p>"
+		except KeyError:
+			pass
+		
+		# Test for spellcheck
+		spellcheck = ""
+		dym = didyoumean.did_you_mean(query)
+		if dym:
+			spellcheck = "<a href='/?q=%s'>Did you mean: %s?</a>" % (urllib.parse.quote(dym), dym)
+		
+
+		page = MAIN_PAGE_TEMPLATE % {"query":query, "spellcheck": spellcheck, "content": message, "sidebar": sidebar, "context": context}
+		
+		# Send the client the 200, OK http response, as ?q should never 404.
+		self.show_page(page)
+		
+	
+	def do_POST(self):
+		# Parse the form data posted
+		form = cgi.FieldStorage(
+			fp=self.rfile, 
+			headers=self.headers,
+			environ={'REQUEST_METHOD':'POST',
+					 'CONTENT_TYPE':self.headers['Content-Type'],})
+	
+		document_text = None
+		document_name = None
+		metadata = {}
+		
+		field_items = {}
+		for field in form.keys():
+			if isinstance(form[field],  cgi.FieldStorage):
+				field_items[field] = form[field]
+			else:
+				field_items[field] = form[field][0]
+		
+		
+		for field, field_item in field_items.items():
+			try:
+				if field_item.filename:
+					# The field contains an uploaded file
+					document_text = field_item.file
+					document_name = field_item.filename
+				else:
+					# Regular form value
+					metadata[field] = field_item.value
+			except AttributeError:
+				metadata[field] = field_item.value
+				
+		try:
+			document_uri = metadata['uri']
+		except KeyError:
+			document_uri = document_name
+	
+		doc = document.Document(document_text, document_uri, metadata)
+		
+		self.show_page("Success!" if ffd.add_document(doc) else "Failure")
+
+class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
+	"""Handle requests in a separate thread."""
+
+if __name__ == '__main__':
+	server = ThreadedHTTPServer(('', 33335), Handler)
+	
+	print('Starting server on http://localhost:33335, use <Ctrl-C> to stop')
+	try:
+		server.serve_forever()
+	except KeyboardInterrupt:
+		ffd.shutdown()

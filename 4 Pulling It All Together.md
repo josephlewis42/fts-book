@@ -58,114 +58,70 @@ POSTing Guidelines
 For the server to work, the following posting guidelines must be adhered
 to.
 
-*	POSTs must only contain more than one file, if more than one is
+*	POSTs must only contain one file, if more than one is
 	found, the last definition is kept.
 *	To submit a document with a different URI than the default (the
 	uploaded file name) use a field with the name `uri`
 *	All other form elements submitted will become metadata key->value
 	pairs associated with the document.
 
+Implementation
+--------------
 
-Server Implementation
----------------------
+We won't go through the *whole* server implementation here, just the part that
+parses the documents you upload (a full review will be later). The source is 
+available in `lovelace.py`
 
-This server will spawn a new thread for ever post, and will commit the
-results upon shutdown.
+The `do_POST` method first finds all of the data that was sent to it and saves
+it in a form:
 
-	from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
-	from SocketServer import ThreadingMixIn
-	import threading
-	import cgi
-	import flat_file_database
-	import document
-
-	ffd = flat_file_database.FlatFile() # could also be the SQLite database.
-
-	class Handler(BaseHTTPRequestHandler):
-		'''A new Handler will be spawned for each connection.'''
+	def do_POST(self):
+		# Parse the form data posted
+		form = cgi.FieldStorage(
+			fp=self.rfile, 
+			headers=self.headers,
+			environ={'REQUEST_METHOD':'POST',
+					 'CONTENT_TYPE':self.headers['Content-Type'],})
 	
-		def do_GET(self):
-			''' If the client does a GET request, i.e. the one you'd do by typing in
-			http://localhost:33335/?q=hello%20world this function will be called.
-			'''
+		document_text = None
+		document_name = None
+		metadata = {}
+
+Next, it loops through all of the form items, and sets up a map for field names 
+and items.
+
+		field_items = {}
+		for field in form.keys():
+			if isinstance(form[field],  cgi.FieldStorage):
+				field_items[field] = form[field]
+			else:
+				field_items[field] = form[field][0]
+
+After finding all form items, try to set them up as either metadata, or the 
+uploaded document itself.
 		
-			# Turn the query string (the part of the url after the ? mark, in to a
-			# map.
-			qs = {}
-			if self.path.find('?') > -1:
-				qs = self.path.split('?',1)[1]
-				qs = cgi.parse_qs(qs, keep_blank_values=1)
-		
-			# Try forming a message based upon the query, in this simple example,
-			# we'll just output an array for documents containing the given term.
+		for field, field_item in field_items.items():
 			try:
-				message = []
-				for query in qs['q'][0].split():
-					message.append( ffd.find_documents_for_term(query))
-				message = str(message)
-			except Exception:
-				message = "no query string"
-		
-			# Send the client the 200, OK http response, as ?q should never 404.
-			self.send_response(200)
-			self.end_headers()
-		
-			# Send the client the message, terminated by a newline.
-			self.wfile.write(message)
-			self.wfile.write('\n')	
-			return
-		
-		def do_POST(self):
-			# Parse the form data posted
-			form = cgi.FieldStorage(
-				fp=self.rfile, 
-				headers=self.headers,
-				environ={'REQUEST_METHOD':'POST',
-						 'CONTENT_TYPE':self.headers['Content-Type'],})
-
-			# Begin the response
-			self.send_response(200)
-			self.end_headers()
-		
-		
-			document_text = None
-			document_name = None
-			metadata = {}
-
-			# Echo back information about what was posted in the form
-			for field in form.keys():
-				field_item = form[field]
 				if field_item.filename:
 					# The field contains an uploaded file
-					document_text = field_item.file;
-					document_name = field_item.filename;
+					document_text = field_item.file
+					document_name = field_item.filename
 				else:
 					# Regular form value
-					metadata[field] = field_item.value;
-		
-			try:
-				document_uri = metadata['uri']
-			except KeyError:
-				document_uri = document_name
-		
-			json = document.Document(document_text, document_uri, metadata).dump_json()
-		
-			if ffd.add_document(json):
-				self.wfile.write("Document added success!\r\n")
-			else:
-				self.wfile.write("Document added failure.\r\n")
-		
-			self.wfile.write("JSON:\r\n%s" % json)
-		
-			return
+					metadata[field] = field_item.value
+			except AttributeError:
+				metadata[field] = field_item.value
 
-	class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
-		"""Handle requests in a separate thread."""
-
-	if __name__ == '__main__':
-		server = ThreadedHTTPServer(('localhost', 33335), Handler)
-		print 'Starting server, use <Ctrl-C> to stop'
+Next, we try to set the URI: if one was uploaded with the key 'URI' use that, 
+otherwise use the file name that came with the document.
+	
 		try:
-			server.serve_forever()
-		except KeyboardInterrupt:
-			ffd.shutdown()
+			document_uri = metadata['uri']
+		except KeyError:
+			document_uri = document_name
+
+Next, we'll create a document and add it to the database, then send back whether
+it worked or not.
+	
+		doc = document.Document(document_text, document_uri, metadata)
+		self.show_page("Success!" if ffd.add_document(doc) else "Failure")
